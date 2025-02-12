@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة الفيديو - {{ room_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h2>غرفة الفيديو: {{ room_id }}</h2>
+    <div id="video-container">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+    <button id="leaveRoom">🚪 مغادرة الغرفة</button>
+
+    <script>
+        const socket = io();
+        const roomId = "{{ room_id }}";
+        const localVideo = document.getElementById("localVideo");
+        const remoteVideo = document.getElementById("remoteVideo");
+        const leaveRoomBtn = document.getElementById("leaveRoom");
+
+        let localStream;
+        let peerConnection;
+        let isInitiator = false;
+        let userId = Math.random().toString(36).substring(2, 10); // معرف فريد لكل مستخدم
+
+        const configuration = {
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                {
+                    urls: "turn:relay.metered.ca:80",
+                    username: "webrtc",
+                    credential: "webrtc"
+                }
+            ]
+        };
+
+        // ✅ الحصول على الفيديو المحلي
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localStream = stream;
+                localVideo.srcObject = stream;
+                socket.emit("join_room", { room_id: roomId, user_id: userId });
+            })
+            .catch(error => console.error("❌ خطأ في الفيديو:", error));
+
+        function createPeerConnection() {
+            if (peerConnection) return;
+
+            peerConnection = new RTCPeerConnection(configuration);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    socket.emit("ice_candidate", { candidate: event.candidate, room_id: roomId });
+                }
+            };
+
+            peerConnection.ontrack = event => {
+                if (!remoteVideo.srcObject) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+            };
+        }
+
+        // ✅ استقبال المستخدمين الجدد
+        socket.on("user_joined", (data) => {
+            if (data.user_id === userId) return;
+
+            if (!isInitiator) {
+                isInitiator = true;
+                createPeerConnection();
+
+                peerConnection.createOffer()
+                    .then(offer => peerConnection.setLocalDescription(offer))
+                    .then(() => {
+                        socket.emit("offer", { offer: peerConnection.localDescription, room_id: roomId });
+                    })
+                    .catch(error => console.error("❌ خطأ في إنشاء العرض:", error));
+            }
+        });
+
+        // ✅ استقبال العرض (Offer)
+        socket.on("offer", data => {
+            if (data.user_id === userId) return;
+
+            createPeerConnection();
+
+            peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+                .then(() => peerConnection.createAnswer())
+                .then(answer => peerConnection.setLocalDescription(answer))
+                .then(() => {
+                    socket.emit("answer", { answer: peerConnection.localDescription, room_id: roomId });
+                })
+                .catch(error => console.error("❌ خطأ في معالجة العرض:", error));
+        });
+
+        // ✅ استقبال الإجابة (Answer)
+        socket.on("answer", data => {
+            if (data.user_id === userId) return;
+
+            if (peerConnection) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+                    .catch(error => console.error("❌ خطأ في تعيين الإجابة:", error));
+            }
+        });
+
+        // ✅ استقبال مرشحي ICE
+        socket.on("ice_candidate", data => {
+            if (peerConnection) {
+                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+                    .catch(error => console.error("❌ خطأ في إضافة ICE Candidate:", error));
+            }
+        });
+
+        // ✅ مغادرة الغرفة
+        leaveRoomBtn.addEventListener("click", () => {
+            socket.emit("leave_room", { room_id: roomId });
+            closeConnection();
+            window.location.href = "/";
+        });
+
+        socket.on("user_left", data => {
+            if (data.user_id !== userId) {
+                closeConnection();
+                remoteVideo.srcObject = null;
+            }
+        });
+
+        function closeConnection() {
+            if (peerConnection) {
+                peerConnection.ontrack = null;
+                peerConnection.onicecandidate = null;
+                peerConnection.close();
+                peerConnection = null;
+            }
+        }
+
+    </script>
+</body>
+</html>

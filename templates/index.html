@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول للغرفة</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h2>أدخل ID الغرفة وكلمة المرور</h2>
+    <form method="POST">
+        <input type="text" name="room_id" placeholder="ID الغرفة" required>
+        <input type="password" name="password" placeholder="كلمة المرور" required>
+        <button type="submit"></button>
+    </form>
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
+    {% endif %}
+</body>
+</html>
