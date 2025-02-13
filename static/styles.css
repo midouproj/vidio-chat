@@ -5,7 +5,7 @@ body {
 video {
   width: 90%;
   border: 2px solid black;
-  margin: 10px;
+  margin: 2px;
 }
 /* إعدادات عامة */
 body {
@@ -28,7 +28,7 @@ h2 {
 }
 
 /* حاوية الفيديوهات */
-#video-container1 {
+#video-container2 {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -42,7 +42,7 @@ h2 {
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
 }
 
-#video-container2 {
+#video-container1 {
     display: flex;
     justify-content: center;
     align-items: center;
