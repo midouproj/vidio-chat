@@ -3,7 +3,7 @@ body {
   text-align: center;
 }
 video {
-  width: 45%;
+  width: 90%;
   border: 2px solid black;
   margin: 10px;
 }
@@ -44,8 +44,8 @@ h2 {
 
 #video-container2 {
     display: flex;
-    justify-content: right;
-    align-items: right;
+    justify-content: center;
+    align-items: center;
     width: 20%;
     max-width: 900px;
     height: 20vh;
